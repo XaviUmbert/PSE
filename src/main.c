@@ -14,10 +14,7 @@
 #include "bsp_trace.h"
 
 #include "bsp_i2c.h"
-
-#include "Wire.h"
 #include "VL53L0X.h"
-#include "VL53L0X.c"
 
 VL53L0X sensor;
 
@@ -37,15 +34,12 @@ static void LedBlink(void *pParameters)
     BSP_LedToggle(1);
     printf("Task 1\n");
 
-    // Inicializar
-    BSP_I2C_Init(0x52);
-
-    // Comprobar registros del sensor
-    //printf("Test %d/n",I2C_Test());
-
-    //valorSensor
     valorSensor = sensor.readRangeContinuousMillimeters();
-    if (sensor.timeoutOccurred()) { Serial.print(" TIMEOUT"); }
+    if (sensor.timeoutOccurred()) {
+      printf("TIMEOUT\n");
+    } else {
+      printf("Distancia: %u mm\n", valorSensor);
+    }
 
     vTaskDelay(delay);
   }
@@ -66,6 +60,15 @@ int main(void)
   /* Setting state of leds*/
   BSP_LedSet(0);
   BSP_LedSet(1);
+
+  /* Initialize I2C and the VL53L0X sensor */
+  BSP_I2C_Init(0x29);
+  if (!sensor.init(true)) {
+    printf("VL53L0X init failed\n");
+    while (1);
+  }
+  sensor.setTimeout(500);
+  sensor.startContinuous(100);
 
   /*Create two task for blinking leds*/
   xTaskCreate(LedBlink, (const char *) "LedBlink1", STACK_SIZE_FOR_TASK, NULL, TASK_PRIORITY, NULL);
