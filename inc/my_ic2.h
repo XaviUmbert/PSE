@@ -9,6 +9,7 @@
 #define INC_MY_IC2_H_
 
 #include <stdbool.h>
+#include <cstdint>
 
 static void INIT_MY_I2C(uint8_t addr);
 
