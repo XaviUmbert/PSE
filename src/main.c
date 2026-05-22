@@ -15,6 +15,15 @@
 
 #include "bsp_i2c.h"
 #include "my_i2c.h"
+#include "queue.h"
+
+// Por el momento, cola dinamica
+QueueHandle_t cola_distancias;
+
+typedef struct{
+	uint8_t high;
+	uint8_t low;
+} msg_distancia;
 
 
 #define STACK_SIZE_FOR_TASK    (configMINIMAL_STACK_SIZE + 10)
@@ -24,26 +33,33 @@
  * @brief Simple task which is blinking led
  * @param *pParameters pointer to parameters passed to the function
  ******************************************************************************/
-uint16_t ReadDistance(){
+
+msg_distancia ReadDistance(){
 	uint8_t status;
 	uint8_t high;
 	uint8_t low;
-	int timeout = 1000;
+	msg_distancia msg1;
+	//int timeout = 1000;
 
 	WRITE_MY_I2C(0x00, 0x01);
 
 	do{
 		READ_MY_I2C(0x13,&status);
-		timeout--;
-	}while((status & 0x01)==0 && timeout);
+		//timeout--;
+	}while((status & 0x07)!=0);
+	//}while((status & 0x01)==0 && timeout);
 
 
 	READ_MY_I2C(0x1E,&high);
 	READ_MY_I2C(0x1F,&low);
 
-	WRITE_MY_I2C(0x00, 0x01);
+	//printf("High %x \n",high);
+	//printf("Low %x\n",low);
 
-	return (high << 8) | low;
+	WRITE_MY_I2C(0x0B, 0x01);
+	msg1.high = high;
+	msg1.low = low;
+	return msg1;
 }
 
 static void LedBlink(void *pParameters)
@@ -51,16 +67,22 @@ static void LedBlink(void *pParameters)
   (void) pParameters;
   const portTickType delay = pdMS_TO_TICKS(500);
 
+  // Variable a enviar a la Task 2
+  msg_distancia msg;
+
   uint16_t dist;
+
+  // Inicializar Lidar
+  INIT_MY_I2C(0x52);
 
   for (;; ) {
     BSP_LedToggle(1);
     printf("Task 1\n");
     //printf("Frec CPU %lu \n",SystemCoreClock);
-    INIT_MY_I2C(0x52);
 
-    dist = ReadDistance();
-    printf("Test %d mm /n",dist);
+    msg = ReadDistance();
+
+    printf("Test %x %x mm \n",msg.high,msg.low);
 
     vTaskDelay(delay);
   }
