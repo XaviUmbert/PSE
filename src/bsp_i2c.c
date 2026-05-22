@@ -86,57 +86,6 @@ bool BSP_I2C_ReadRegister(uint8_t reg, uint8_t *val) {
 	return true;
 }
 
-bool BSP_I2C_WriteMulti(uint8_t reg, const uint8_t *data, uint8_t count)
-{
-	I2C_TransferReturn_TypeDef I2C_Status;
-	I2C_TransferSeq_TypeDef seq;
-	uint8_t wdata[1 + 255];
-
-	if (count > 255) {
-		return false;
-	}
-
-	wdata[0] = reg;
-	for (uint8_t i = 0; i < count; i++) {
-		wdata[1 + i] = data[i];
-	}
-
-	seq.addr = device_addr;
-	seq.flags = I2C_FLAG_WRITE;
-	seq.buf[0].data = wdata;
-	seq.buf[0].len = 1 + count;
-
-	I2C_Status = I2C_TransferInit(I2C1, &seq);
-
-	while (I2C_Status == i2cTransferInProgress) {
-		I2C_Status = I2C_Transfer(I2C1);
-	}
-
-	return (I2C_Status == i2cTransferDone);
-}
-
-bool BSP_I2C_ReadMulti(uint8_t reg, uint8_t *dst, uint8_t count)
-{
-	I2C_TransferReturn_TypeDef I2C_Status;
-	I2C_TransferSeq_TypeDef seq;
-
-	seq.addr = device_addr;
-	seq.flags = I2C_FLAG_WRITE_READ;
-
-	seq.buf[0].data = &reg;
-	seq.buf[0].len = 1;
-	seq.buf[1].data = dst;
-	seq.buf[1].len = count;
-
-	I2C_Status = I2C_TransferInit(I2C1, &seq);
-
-	while (I2C_Status == i2cTransferInProgress) {
-		I2C_Status = I2C_Transfer(I2C1);
-	}
-
-	return (I2C_Status == i2cTransferDone);
-}
-
 bool I2C_Test() {
 	uint8_t data;
 
@@ -151,5 +100,4 @@ bool I2C_Test() {
 	}
 
 }
-
 

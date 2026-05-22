@@ -69,4 +69,3 @@ static bool TEST_MY_I2C(void)
     return ok;
 }
 
-
