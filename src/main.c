@@ -18,7 +18,12 @@
 #include "queue.h"
 
 // Por el momento, cola dinamica
-QueueHandle_t cola_distancias;
+QueueHandle_t colaRaw, colaDist; //colaRaw Task 1 -> 2;; colaDist Task 2 -> 3
+
+/*
+colaRaw = xQueueCreate(30, sizeof(msg_distancia));
+colaDist = xQueueCreate(30, sizeof(uint8_t));
+*/
 
 typedef struct{
 	uint8_t high;
@@ -62,15 +67,13 @@ msg_distancia ReadDistance(){
 	return msg1;
 }
 
-static void LedBlink(void *pParameters)
+static void Task1(void *pParameters)
 {
   (void) pParameters;
   const portTickType delay = pdMS_TO_TICKS(500);
 
   // Variable a enviar a la Task 2
   msg_distancia msg;
-
-  uint16_t dist;
 
   // Inicializar Lidar
   INIT_MY_I2C(0x52);
@@ -82,10 +85,38 @@ static void LedBlink(void *pParameters)
 
     msg = ReadDistance();
 
-    printf("Test %x %x mm \n",msg.high,msg.low);
+    printf("Test -- High: %x Low: %x\n",msg.high,msg.low);
+
+    //enviar valor a la cola
+    xQueueSend(colaRaw, &msg, 0xFFFFFFFF); //0xFFFFFFFF(portMax_DELAY): La tarea se duerme y no consume CPU hasta que la cola tenga espacio o datos disponibles.
 
     vTaskDelay(delay);
   }
+}
+static void Task2(void *pParameters)
+{
+  (void) pParameters;
+
+  msg_distancia msg;
+
+  uint16_t dist;
+
+  xQueueReceive(colaRaw, &msg, 0xFFFFFFFF);
+
+  dist = ((uint12_t)msg.high << 8) | msg.low;
+
+  xQueueSend(colaDist, &dist,  0xFFFFFFFF)
+
+}
+
+static void Task3(void *pParameters)
+{
+  (void) pParameters;
+
+  uint16_t dist;
+  xQueueReceive(colaRaw, &dist, 0xFFFFFFFF);
+
+  printf("Distancia: %x mm\n",dist);
 }
 
 /***************************************************************************//**
@@ -104,9 +135,12 @@ int main(void)
   BSP_LedSet(0);
   BSP_LedSet(1);
 
-  /*Create two task for blinking leds*/
-  xTaskCreate(LedBlink, (const char *) "LedBlink1", STACK_SIZE_FOR_TASK, NULL, TASK_PRIORITY, NULL);
-
+  //Task 1
+  xTaskCreate(Task1, (const char *) "Task 1", STACK_SIZE_FOR_TASK, NULL, TASK_PRIORITY, NULL);
+  //Task 2 
+  xTaskCreate(Task2, (const char *) "Task 2", STACK_SIZE_FOR_TASK, NULL, TASK_PRIORITY, NULL);
+  //Task 3
+  xTaskCreate(Task3, (const char *) "Task 3", STACK_SIZE_FOR_TASK, NULL, TASK_PRIORITY, NULL);
   /*Start FreeRTOS Scheduler*/
   vTaskStartScheduler();
 
